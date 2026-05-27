@@ -1,0 +1,45 @@
+I will be using this file to create a detailed description about this project.
+ 
+In this present working directory folder, I have added an api_description.txt file.
+ 
+In that TXT file, I have added the details about the LumenX platform, the GitHub repository associated with its website, and also the API endpoints.
+ 
+What I want to do in this project is the following: I want to create an Auto Reply LLM agent.
+ 
+Now, in this auto reply agent, there are several things we have to consider for building a good context window:
+- The past conversation history with the particular customer
+- The past conversation history with all the customers
+There should be a feedback mechanism by which I can give feedback whenever there is a reply that is created. There should be an option for correcting the reply. If an agent has created a reply, as a human I should be able to review and edit the reply. There should be an option to auto reply also. To decide whether the agent-created reply has to be replied to automatically, there has to be a neural network which performs classification or which predicts a confidence score. This neural network will be trained based on all the replies that we have had so far, and based on that it will try to predict a confidence score for the new reply. In addition to this, if the confidence score is greater than a certain threshold which is decided by me, there should be some way to automatically send the reply. If the confidence score is above the threshold, I should be reviewing the reply as a human if the confidence score is below the threshold.
+ 
+Here I have to make a plan for building the trained multi-layer perceptron, because the multi-layer perceptron training data should come from a wide variety of data where a huge span of confidence score is covered in the training data. I have to make a plan for how exactly I will get the ground truth training data in the first place.
+ 
+And the agent will be creating the reply to the questions based on the API endpoint which you have.
+ 
+And we also have to construct an LLM wiki which holds all the knowledge about the products, and I have created API endpoints using which the product knowledge can be fetched.
+ 
+And to understand about LLM wiki and how to construct it, refer to this GitHub gist: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+ 
+I also need an intent router for classifying the initial query. If the query has nothing to do with our products, if it is just a generic "hi" or just basic conversational, the intent layer itself should take care of it. The query has nothing to do with the product. Just politely reply to the customer. In general, the chatbot should be a very professional-sounding, empathetic agent.
+ 
+Agents should never hallucinate on pricing details or on refund policy because those are very sensitive. If you don't know the information, you can mention something like "Sorry, I don't have access to that information" or something like that instead of hallucination. You have to create appropriate system prompts which ensure that the hallucination rate is minimized.
+ 
+And in the context, the current conversations in the current thread plus a summary of all the past conversations with all the past clients should be loaded because that will give the agent a good idea about how exactly to reply.
+ 
+You also need to create a detailed feedback log, which will help the future replies, because I assume that many questions that customers ask in the future will be something that another customer has asked in the past. If a good reply has been already created in the past, it will be a very good idea to pass that log into the context of the LLM agent.
+ 
+D:/AI/confidence.png
+ 
+In this image, I have added the details about the architecture which I am thinking.
+ 
+And in the image described in the below path, I'm showing you the rough architecture that I'm thinking for the multi-layer perceptron or the neural network for predicting the confidence score.
+ 
+D:/AI/architecture.png
+ 
+Now, based on this instructions file, I want you to create a detailed, useful README.md file. I also want you to define the appropriate skills and other persistent memory files which will help you while building this project. I don't want you to build the project in one shot. I want you to build it in phases. First, make a detailed plan about how you can execute this project so that finally I can have a deployed agent working on my deployed website.
+ 
+I can give you an Anthropic API for creating the reply and for intent classification. I want to minimize the cost, so use a lower model. For actual response creation, you can use a higher-end model, but in any case I want you to keep track of the cost.
+ 
+There should be a dashboard which you create ultimately, which will show me the cost associated with replying to the queries and which also shows me per response how many tokens are being consumed. You can show me the actual context window as an expandable option associated with every single reply.
+
+Now, first go ahead and create a detailed claude.md file, plus also make a proper plan for your
+execution.

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LumenX Knowledge Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#060b18;color:#e2e8f0}
+
+/* ── Header ── */
+header{
+  height:60px;padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(255,255,255,0.025);
+  border-bottom:1px solid rgba(255,255,255,0.07);
+  backdrop-filter:blur(16px);
+  position:relative;z-index:20;
+  flex-shrink:0;
+}
+.h-left{display:flex;align-items:center;gap:12px}
+.logo{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;box-shadow:0 0 24px rgba(99,102,241,0.5);
+  flex-shrink:0;
+}
+.h-title{font-size:14px;font-weight:600;color:#f1f5f9;letter-spacing:-0.01em}
+.h-sub{font-size:11px;color:#475569;margin-top:1px}
+.stat-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 11px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:20px;font-size:11px;color:#64748b;margin-left:6px;
+}
+.live-dot{
+  width:6px;height:6px;border-radius:50%;background:#10b981;
+  animation:blink 2.4s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.25}}
+
+/* ── Layout ── */
+main{display:flex;height:calc(100vh - 60px);overflow:hidden}
+
+/* ── Graph panel ── */
+#gp{
+  flex:1;position:relative;overflow:hidden;
+  background:
+    radial-gradient(ellipse 60% 50% at 35% 25%,rgba(99,102,241,0.09) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 40% at 75% 75%,rgba(6,182,212,0.05) 0%,transparent 60%),
+    #060b18;
+}
+#gsvg{width:100%;height:100%;display:block;cursor:grab}
+#gsvg:active{cursor:grabbing}
+
+/* Hint overlay */
+#hint{
+  position:absolute;bottom:70px;left:50%;transform:translateX(-50%);
+  background:rgba(6,11,24,0.8);border:1px solid rgba(255,255,255,0.08);
+  border-radius:20px;padding:5px 14px;font-size:11px;color:#475569;
+  pointer-events:none;transition:opacity 1s;
+  backdrop-filter:blur(8px);white-space:nowrap;
+}
+
+/* Legend */
+#legend{
+  position:absolute;bottom:20px;left:20px;
+  background:rgba(6,11,24,0.88);border:1px solid rgba(255,255,255,0.07);
+  border-radius:10px;padding:12px 14px;backdrop-filter:blur(12px);font-size:11px;
+  max-width:160px;
+}
+.leg-head{color:#334155;font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;font-weight:600}
+.leg-row{display:flex;align-items:center;gap:7px;margin-bottom:5px;color:#64748b}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.leg-dash{width:16px;height:0;border-bottom:1.5px dashed;flex-shrink:0}
+.leg-line{width:16px;height:0;border-bottom:1px solid;flex-shrink:0}
+
+/* Zoom controls */
+#zc{
+  position:absolute;bottom:20px;right:20px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.zb{
+  width:32px;height:32px;
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);
+  border-radius:7px;color:#64748b;font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;user-select:none;
+}
+.zb:hover{background:rgba(255,255,255,0.1);color:#e2e8f0;border-color:rgba(255,255,255,0.2)}
+
+/* Search */
+#sb{position:absolute;top:14px;left:14px}
+#si{
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);
+  border-radius:8px;padding:7px 12px 7px 30px;color:#e2e8f0;
+  font-size:12px;font-family:inherit;width:200px;outline:none;
+  transition:border-color .2s,background .2s;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:9px center;
+}
+#si:focus{border-color:rgba(99,102,241,.5);background-color:rgba(255,255,255,.07)}
+#si::placeholder{color:#334155}
+
+/* ── Right panel ── */
+#rp{
+  width:390px;display:flex;flex-direction:column;
+  border-left:1px solid rgba(255,255,255,0.07);overflow:hidden;flex-shrink:0;
+}
+
+/* Node detail */
+#nd{
+  padding:18px;border-bottom:1px solid rgba(255,255,255,0.06);
+  min-height:180px;max-height:42%;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.07) transparent;
+}
+.nd-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:140px;gap:8px;color:#334155;text-align:center;
+}
+.nd-empty-icon{font-size:30px;opacity:.35}
+.nd-empty-title{font-size:13px;font-weight:500;color:#475569}
+.nd-empty-sub{font-size:11px;color:#334155;line-height:1.6}
+.nd-badge{
+  display:inline-flex;align-items:center;padding:3px 9px;border-radius:4px;
+  font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
+  margin-bottom:9px;
+}
+.nd-title{font-size:16px;font-weight:600;color:#f1f5f9;margin-bottom:3px;line-height:1.3}
+.nd-sub{font-size:11px;color:#475569;margin-bottom:10px}
+.nd-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.nd-tag{
+  padding:3px 8px;border-radius:4px;font-size:10px;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);color:#64748b;
+}
+.nd-text{
+  font-size:11.5px;line-height:1.75;color:#94a3b8;white-space:pre-wrap;word-break:break-word;
+  background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);
+  border-radius:8px;padding:10px 12px;max-height:200px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.06) transparent;
+}
+
+/* ── Chat ── */
+#chat{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.chat-hdr{
+  padding:13px 18px;border-bottom:1px solid rgba(255,255,255,0.06);
+  font-size:12.5px;font-weight:500;color:#64748b;
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+.chat-hdr-icon{
+  width:24px;height:24px;border-radius:6px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+}
+#msgs{
+  flex:1;overflow-y:auto;padding:14px;
+  display:flex;flex-direction:column;gap:10px;min-height:0;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.07) transparent;
+}
+.msg-user{
+  align-self:flex-end;max-width:82%;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  padding:9px 13px;border-radius:14px 14px 3px 14px;
+  font-size:13px;line-height:1.55;word-break:break-word;
+}
+.msg-ai{align-self:flex-start;max-width:96%}
+.msg-bubble{
+  background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.07);
+  padding:10px 13px;border-radius:3px 14px 14px 14px;
+  font-size:12.5px;line-height:1.7;color:#cbd5e1;word-break:break-word;
+}
+.src-head{
+  font-size:9.5px;color:#334155;text-transform:uppercase;letter-spacing:.08em;
+  margin:8px 0 4px;font-weight:600;
+}
+.src-chip{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 10px;
+  background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);
+  border-radius:7px;margin-bottom:4px;cursor:pointer;
+  transition:all .15s;border-left-width:3px;
+}
+.src-chip:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.15)}
+.src-chip:hover .src-pname{color:#f1f5f9}
+.src-pname{font-size:12px;font-weight:500;color:#e2e8f0;transition:color .15s}
+.src-sec{font-size:10px;color:#475569;margin-top:1px}
+.src-score{
+  margin-left:auto;font-size:10px;color:#334155;
+  font-variant-numeric:tabular-nums;flex-shrink:0;
+}
+.msg-meta{font-size:10px;color:#334155;margin-top:5px}
+/* typing */
+.typing{
+  display:inline-flex;gap:4px;padding:11px 13px;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
+  border-radius:3px 14px 14px 14px;
+}
+.td{width:6px;height:6px;border-radius:50%;background:#6366f1;animation:bounce 1.2s infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-6px);opacity:1}}
+/* input row */
+#cir{
+  padding:11px 14px;border-top:1px solid rgba(255,255,255,0.06);
+  display:flex;gap:8px;background:rgba(6,11,24,.6);flex-shrink:0;
+}
+#ci{
+  flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);
+  border-radius:10px;padding:9px 13px;color:#e2e8f0;font-size:12.5px;font-family:inherit;
+  outline:none;transition:border-color .2s;
+}
+#ci:focus{border-color:rgba(99,102,241,.5);background:rgba(255,255,255,.06)}
+#ci::placeholder{color:#334155}
+#sb-btn{
+  width:36px;height:36px;flex-shrink:0;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;
+  border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;box-shadow:0 0 18px rgba(99,102,241,.4);
+}
+#sb-btn:hover{transform:scale(1.06);box-shadow:0 0 24px rgba(99,102,241,.6)}
+#sb-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+#sb-btn svg{pointer-events:none}
+
+/* Tooltip */
+.tt{
+  position:fixed;background:rgba(6,11,24,.96);
+  border:1px solid rgba(255,255,255,.1);border-radius:9px;
+  padding:8px 12px;font-size:11.5px;pointer-events:none;z-index:1000;
+  max-width:220px;line-height:1.55;backdrop-filter:blur(16px);
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+.tt-title{font-weight:600;color:#f1f5f9;margin-bottom:2px}
+.tt-sub{color:#475569;font-size:10.5px}
+.tt-preview{color:#64748b;font-size:10.5px;margin-top:4px;line-height:1.5}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-left">
+    <div class="logo">⬡</div>
+    <div>
+      <div class="h-title">LumenX Knowledge Graph</div>
+      <div class="h-sub">Interactive product wiki explorer</div>
+    </div>
+  </div>
+  <div id="hstats"></div>
+</header>
+
+<main>
+  <!-- ── Graph panel ── -->
+  <div id="gp">
+    <svg id="gsvg"></svg>
+
+    <!-- Search -->
+    <div id="sb"><input id="si" type="text" placeholder="Filter products…" autocomplete="off"></div>
+
+    <!-- Legend -->
+    <div id="legend"></div>
+
+    <!-- Zoom controls -->
+    <div id="zc">
+      <div class="zb" onclick="zIn()" title="Zoom in">+</div>
+      <div class="zb" onclick="zReset()" title="Reset">⊙</div>
+      <div class="zb" onclick="zOut()" title="Zoom out">−</div>
+    </div>
+
+    <div id="hint">⌕ Drag nodes · Scroll to zoom · Click to explore</div>
+  </div>
+
+  <!-- ── Right panel ── -->
+  <div id="rp">
+    <!-- Node detail -->
+    <div id="nd">
+      <div class="nd-empty">
+        <div class="nd-empty-icon">⬡</div>
+        <div class="nd-empty-title">Click any node</div>
+        <div class="nd-empty-sub">Product nodes show all sections.<br>Section nodes reveal full content.</div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div id="chat">
+      <div class="chat-hdr">
+        <div class="chat-hdr-icon">💬</div>
+        Ask the Wiki
+      </div>
+      <div id="msgs">
+        <div style="text-align:center;color:#334155;font-size:11.5px;padding:6px 4px;line-height:1.7">
+          Ask anything about LumenX products —<br>pricing, features, integrations, policies…
+        </div>
+      </div>
+      <div id="cir">
+        <input id="ci" type="text" placeholder="Ask anything about LumenX…" autocomplete="off">
+        <button id="sb-btn" onclick="sendQ()" title="Send">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════════════════
+const SEC = {
+  overview:      { color:'#6366f1', label:'Overview'        },
+  features:      { color:'#06b6d4', label:'Features'        },
+  pricing:       { color:'#f59e0b', label:'Pricing'         },
+  refund_policy: { color:'#ef4444', label:'Refund Policy'   },
+  integrations:  { color:'#10b981', label:'Integrations'    },
+  support_sla:   { color:'#8b5cf6', label:'Support SLA'     },
+  policies:      { color:'#f97316', label:'Company Policies'},
+};
+const secColor = s => (SEC[s] || {color:'#64748b'}).color;
+
+const PROD_PALETTE = [
+  '#f43f5e','#fb923c','#fbbf24','#a3e635','#34d399',
+  '#22d3ee','#60a5fa','#a78bfa','#f472b6','#e879f9',
+  '#4ade80','#2dd4bf','#38bdf8','#818cf8','#c084fc',
+  '#fb7185','#fdba74','#fde68a','#86efac','#67e8f9',
+];
+const prodColor = d3.scaleOrdinal(PROD_PALETTE);
+
+// ═══════════════════════════════════════════════════════════════════
+//  D3 GRAPH
+// ═══════════════════════════════════════════════════════════════════
+const svg    = d3.select('#gsvg');
+const gpEl   = document.getElementById('gp');
+const W      = () => gpEl.clientWidth;
+const H      = () => gpEl.clientHeight;
+
+// SVG defs — glow filters
+const defs = svg.append('defs');
+function mkGlow(id, blur) {
+  const f = defs.append('filter').attr('id', id)
+    .attr('x','-60%').attr('y','-60%').attr('width','220%').attr('height','220%');
+  f.append('feGaussianBlur').attr('stdDeviation', blur).attr('result','blur');
+  const m = f.append('feMerge');
+  m.append('feMergeNode').attr('in','blur');
+  m.append('feMergeNode').attr('in','SourceGraphic');
+}
+mkGlow('glow-prod', 5);
+mkGlow('glow-sel',  10);
+
+// Zoom
+const zoom = d3.zoom().scaleExtent([0.08, 8]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom).on('dblclick.zoom', null);
+const g = svg.append('g');
+
+let sim, linkSel, nodeSel, labelSel;
+let adjMap = new Map();   // id → Set of neighbor ids
+let allNodes = [];
+
+async function loadGraph() {
+  const res  = await fetch('/api/graph');
+  const data = await res.json();
+  allNodes   = data.nodes;
+  buildAdj(data.nodes, data.edges);
+  renderGraph(data.nodes, data.edges);
+}
+
+function buildAdj(nodes, edges) {
+  adjMap = new Map();
+  nodes.forEach(n => adjMap.set(n.id, new Set()));
+  edges.forEach(e => {
+    const s = typeof e.source === 'object' ? e.source.id : e.source;
+    const t = typeof e.target === 'object' ? e.target.id : e.target;
+    adjMap.get(s)?.add(t);
+    adjMap.get(t)?.add(s);
+  });
+}
+
+function renderGraph(nodes, edges) {
+  sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(edges).id(d => d.id)
+      .distance(d => d.type === 'integration' ? 220 : 68)
+      .strength(d => d.type === 'integration' ? 0.08 : 0.65))
+    .force('charge', d3.forceManyBody().strength(d => d.type === 'product' ? -600 : -90))
+    .force('center', d3.forceCenter(W() / 2, H() / 2))
+    .force('collide', d3.forceCollide().radius(d => d.r + 7).strength(.8))
+    .alphaDecay(.018);
+
+  // Links
+  linkSel = g.append('g').selectAll('line').data(edges).join('line')
+    .attr('stroke', d => d.type === 'integration' ? '#10b981' : 'rgba(255,255,255,0.07)')
+    .attr('stroke-width', d => d.type === 'integration' ? 1.5 : .7)
+    .attr('stroke-dasharray', d => d.type === 'integration' ? '5,3' : 'none')
+    .attr('opacity', .7);
+
+  // Nodes
+  nodeSel = g.append('g').selectAll('circle').data(nodes).join('circle')
+    .attr('r', d => d.r)
+    .attr('fill', d => d.type === 'product' ? prodColor(d.product_id) : secColor(d.section))
+    .attr('stroke', d => d.type === 'product' ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.1)')
+    .attr('stroke-width', d => d.type === 'product' ? 1.5 : .8)
+    .style('filter', d => d.type === 'product' ? 'url(#glow-prod)' : 'none')
+    .style('cursor', 'pointer')
+    .call(drag())
+    .on('click',     (ev, d) => { ev.stopPropagation(); onNodeClick(d); })
+    .on('mouseover', (ev, d) => showTT(ev, d))
+    .on('mousemove', (ev)    => moveTT(ev))
+    .on('mouseout',  ()      => hideTT());
+
+  // Labels — product nodes only
+  const pNodes = nodes.filter(d => d.type === 'product');
+  labelSel = g.append('g').selectAll('text').data(pNodes).join('text')
+    .text(d => d.label.length > 13 ? d.label.slice(0,11)+'…' : d.label)
+    .attr('text-anchor','middle').attr('dy', d => d.r + 12)
+    .attr('font-size','9px').attr('font-weight','500')
+    .attr('fill','#94a3b8').attr('pointer-events','none')
+    .attr('font-family','Inter,sans-serif');
+
+  // Tick
+  sim.on('tick', () => {
+    linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+           .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    nodeSel.attr('cx',d=>d.x).attr('cy',d=>d.y);
+    labelSel.attr('x',d=>d.x).attr('y',d=>d.y);
+  });
+
+  // Deselect on background click
+  svg.on('click', () => deselect());
+}
+
+function drag() {
+  return d3.drag()
+    .on('start', (ev, d) => { if(!ev.active) sim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; })
+    .on('drag',  (ev, d) => { d.fx=ev.x; d.fy=ev.y; })
+    .on('end',   (ev, d) => { if(!ev.active) sim.alphaTarget(0); d.fx=null; d.fy=null; });
+}
+
+// ── Selection ──
+let selectedId = null;
+
+function onNodeClick(d) {
+  selectedId = d.id;
+  const nb = adjMap.get(d.id) || new Set();
+
+  nodeSel.transition().duration(220)
+    .attr('opacity', n => (n.id === d.id || nb.has(n.id)) ? 1 : 0.1)
+    .attr('r', n => n.id === d.id ? n.r * 1.35 : n.r)
+    .style('filter', n => {
+      if (n.id === d.id) return 'url(#glow-sel)';
+      if (n.type === 'product') return 'url(#glow-prod)';
+      return 'none';
+    });
+
+  linkSel.transition().duration(220)
+    .attr('opacity', e => {
+      const s = e.source.id, t = e.target.id;
+      return (s === d.id || t === d.id) ? 1 : 0.04;
+    })
+    .attr('stroke-width', e => {
+      const s = e.source.id, t = e.target.id;
+      return (s === d.id || t === d.id) ? (e.type==='integration' ? 2 : 1.5) : .4;
+    });
+
+  showDetail(d);
+}
+
+function deselect() {
+  selectedId = null;
+  if (!nodeSel) return;
+  nodeSel.transition().duration(220)
+    .attr('opacity', 1).attr('r', d => d.r)
+    .style('filter', d => d.type === 'product' ? 'url(#glow-prod)' : 'none');
+  linkSel.transition().duration(220)
+    .attr('opacity', .7)
+    .attr('stroke-width', d => d.type === 'integration' ? 1.5 : .7);
+  showWelcome();
+}
+
+// ── Zoom buttons ──
+function zIn()    { svg.transition().duration(250).call(zoom.scaleBy, 1.5); }
+function zOut()   { svg.transition().duration(250).call(zoom.scaleBy, 0.65); }
+function zReset() { svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity.translate(W()/2, H()/2).scale(1)); }
+
+// Pan to a node
+function panTo(d) {
+  const t = d3.zoomTransform(svg.node());
+  svg.transition().duration(600)
+    .call(zoom.transform, d3.zoomIdentity
+      .translate(W()/2 - t.k * d.x, H()/2 - t.k * d.y)
+      .scale(t.k));
+}
+
+// ── Search filter ──
+document.getElementById('si').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  if (!nodeSel) return;
+  if (!q) { deselect(); return; }
+  nodeSel.transition().duration(180)
+    .attr('opacity', d => {
+      const match = d.label.toLowerCase().includes(q)
+        || (d.product_name||'').toLowerCase().includes(q);
+      return match ? 1 : 0.08;
+    });
+  labelSel?.transition().duration(180)
+    .attr('opacity', d => d.label.toLowerCase().includes(q) ? 1 : 0.1);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  TOOLTIP
+// ═══════════════════════════════════════════════════════════════════
+const tt = d3.select('body').append('div').attr('class','tt')
+  .style('opacity',0).style('display','none').style('transition','opacity .15s');
+
+function showTT(ev, d) {
+  const html = d.type === 'product'
+    ? `<div class="tt-title">${esc(d.label)}</div>
+       <div class="tt-sub">${d.sections?.length||0} sections · click to explore</div>`
+    : `<div class="tt-title">${esc(d.label)}</div>
+       <div class="tt-sub">${esc(d.product_name)}</div>
+       ${d.text_preview ? `<div class="tt-preview">${esc(d.text_preview)}</div>` : ''}`;
+  tt.html(html).style('display','block').style('opacity',1);
+  moveTT(ev);
+}
+function moveTT(ev) {
+  tt.style('left', `${ev.clientX+14}px`).style('top', `${ev.clientY-10}px`);
+}
+function hideTT() {
+  tt.style('opacity',0).on('end', ()=>tt.style('display','none'));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DETAIL PANEL
+// ═══════════════════════════════════════════════════════════════════
+function showWelcome() {
+  document.getElementById('nd').innerHTML = `
+    <div class="nd-empty">
+      <div class="nd-empty-icon">⬡</div>
+      <div class="nd-empty-title">Click any node</div>
+      <div class="nd-empty-sub">Product nodes show all sections.<br>Section nodes reveal full content.</div>
+    </div>`;
+}
+
+function showDetail(d) {
+  const nd = document.getElementById('nd');
+  if (d.type === 'product') {
+    const c = prodColor(d.product_id);
+    const tags = (d.sections||[]).map(s => {
+      const sc = secColor(s);
+      return `<span class="nd-tag" style="color:${sc};border-color:${sc}22;background:${sc}11">${s.replace(/_/g,' ')}</span>`;
+    }).join('');
+    nd.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:${c};
+          box-shadow:0 0 20px ${c}55;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📦</div>
+        <div>
+          <div class="nd-title">${esc(d.label)}</div>
+          <div class="nd-sub">${(d.sections||[]).length} sections</div>
+        </div>
+      </div>
+      <div class="nd-tags">${tags}</div>
+      <div style="font-size:11px;color:#334155;margin-top:4px">↓ Click a section node to see its full content</div>`;
+  } else {
+    const sc = secColor(d.section);
+    nd.innerHTML = `
+      <div class="nd-badge" style="background:${sc}18;color:${sc};border:1px solid ${sc}30">
+        ${esc(d.section.replace(/_/g,' '))}
+      </div>
+      <div class="nd-title">${esc(d.product_name)}</div>
+      <div class="nd-sub">${esc(d.label)}</div>
+      <div class="nd-text" id="chunk-text">Loading…</div>`;
+    fetch(`/api/chunk/${encodeURIComponent(d.id)}`)
+      .then(r => r.json())
+      .then(c => {
+        const el = document.getElementById('chunk-text');
+        if (el) el.textContent = c.text || '(empty)';
+      })
+      .catch(() => {
+        const el = document.getElementById('chunk-text');
+        if (el) el.textContent = d.text_preview || '(unavailable)';
+      });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LEGEND
+// ═══════════════════════════════════════════════════════════════════
+function buildLegend() {
+  const rows = Object.entries(SEC).map(([k,v]) =>
+    `<div class="leg-row"><div class="leg-dot" style="background:${v.color}"></div>${v.label}</div>`
+  ).join('');
+  document.getElementById('legend').innerHTML = `
+    <div class="leg-head">Section types</div>${rows}
+    <div style="height:5px"></div>
+    <div class="leg-head">Connections</div>
+    <div class="leg-row"><div class="leg-line" style="border-color:rgba(255,255,255,.18)"></div>Has section</div>
+    <div class="leg-row"><div class="leg-dash" style="border-color:#10b981"></div>Integration</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════════════════════════
+async function loadStats() {
+  try {
+    const res  = await fetch('/api/stats');
+    const data = await res.json();
+    const el   = document.getElementById('hstats');
+    if (data.ready) {
+      el.innerHTML = `
+        <div class="stat-pill"><div class="live-dot"></div>Wiki ready</div>
+        <div class="stat-pill">📦 ${data.products} products</div>
+        <div class="stat-pill">🧩 ${data.chunks} chunks</div>`;
+    } else {
+      el.innerHTML = `<div class="stat-pill" style="color:#ef4444;border-color:#ef444430">
+        ⚠ Wiki not built — run python -m wiki.build_wiki</div>`;
+    }
+  } catch(e) {
+    document.getElementById('hstats').innerHTML =
+      `<div class="stat-pill" style="color:#f97316">⚠ Server unreachable</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CHAT
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('ci').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQ(); }
+});
+
+async function sendQ() {
+  const ci  = document.getElementById('ci');
+  const btn = document.getElementById('sb-btn');
+  const q   = ci.value.trim();
+  if (!q) return;
+
+  ci.value = '';
+  btn.disabled = true;
+  addUserMsg(q);
+  const tid = addTyping();
+
+  try {
+    const res  = await fetch('/api/query', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({question: q})
+    });
+    const data = await res.json();
+    removeEl(tid);
+    if (!res.ok) {
+      addAiMsg(`⚠ ${data.detail || 'Something went wrong.'}`, [], null);
+    } else {
+      addAiMsg(data.answer, data.sources || [], {
+        model: data.model,
+        tokens: (data.input_tokens||0) + (data.output_tokens||0),
+        cost: data.cost_usd
+      });
+    }
+  } catch(err) {
+    removeEl(tid);
+    addAiMsg(`⚠ Network error: ${err.message}`, [], null);
+  }
+
+  btn.disabled = false;
+  ci.focus();
+}
+
+function addUserMsg(text) {
+  const msgs = document.getElementById('msgs');
+  const d = document.createElement('div');
+  d.className = 'msg-user';
+  d.textContent = text;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addAiMsg(text, sources, meta) {
+  const msgs = document.getElementById('msgs');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-ai';
+
+  // Bubble
+  const bub = document.createElement('div');
+  bub.className = 'msg-bubble';
+  bub.innerHTML = esc(text).replace(/\n/g,'<br>');
+  wrap.appendChild(bub);
+
+  // Sources
+  if (sources && sources.length > 0) {
+    const h = document.createElement('div');
+    h.className = 'src-head';
+    h.textContent = `Sources (${sources.length})`;
+    wrap.appendChild(h);
+
+    sources.forEach((s, i) => {
+      const sc  = secColor(s.section);
+      const pct = s.score != null ? Math.round(s.score * 100) + '%' : '';
+      const chip = document.createElement('div');
+      chip.className = 'src-chip';
+      chip.style.borderLeftColor = sc;
+      chip.innerHTML = `
+        <div style="flex:1">
+          <div class="src-pname">${esc(s.product_name)}</div>
+          <div class="src-sec">${esc((s.section||'').replace(/_/g,' '))}</div>
+        </div>
+        <div class="src-score">${pct}</div>`;
+      chip.addEventListener('click', () => highlightChunk(s.id));
+      chip.title = 'Click to highlight in graph';
+      wrap.appendChild(chip);
+    });
+  }
+
+  // Meta
+  if (meta) {
+    const m = document.createElement('div');
+    m.className = 'msg-meta';
+    m.textContent = `${meta.model} · ${meta.tokens} tokens · $${(meta.cost||0).toFixed(4)}`;
+    wrap.appendChild(m);
+  }
+
+  msgs.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+let _tid = 0;
+function addTyping() {
+  const id   = `t${++_tid}`;
+  const msgs = document.getElementById('msgs');
+  const d    = document.createElement('div');
+  d.id       = id;
+  d.className= 'msg-ai';
+  d.innerHTML= `<div class="typing"><div class="td"></div><div class="td"></div><div class="td"></div></div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+  return id;
+}
+function removeEl(id) { document.getElementById(id)?.remove(); }
+
+// ── Highlight chunk in graph ──
+function highlightChunk(chunkId) {
+  if (!nodeSel) return;
+  const d = allNodes.find(n => n.id === chunkId);
+  if (!d) return;
+  onNodeClick(d);
+  panTo(d);
+}
+
+// ── Util ──
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════════
+(async function boot() {
+  buildLegend();
+  await loadStats();
+  try {
+    await loadGraph();
+  } catch(e) {
+    console.error('Graph load failed:', e);
+    document.getElementById('nd').innerHTML = `
+      <div class="nd-empty">
+        <div class="nd-empty-icon" style="color:#ef4444">⚠</div>
+        <div class="nd-empty-title" style="color:#ef4444">Graph unavailable</div>
+        <div class="nd-empty-sub">Make sure the wiki is built:<br><code style="color:#f97316">python -m wiki.build_wiki</code></div>
+      </div>`;
+  }
+
+  // Fade hint after 4 s
+  setTimeout(() => {
+    const h = document.getElementById('hint');
+    if (h) { h.style.opacity = '0'; setTimeout(()=>h.remove(), 1000); }
+  }, 4000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Secrets
+.env
+.env.local
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Node.js (Playwright MCP tooling — local dev only)
+node_modules/
+package.json
+package-lock.json
+
+# Runtime operational data (written at runtime, not version-controlled)
+data/cost_log.jsonl
+data/feedback_log.jsonl
+
+# IDE / OS
+.claude/
+.vscode/
+*.log
+Thumbs.db
+.DS_Store

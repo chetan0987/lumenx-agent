@@ -1,0 +1,102 @@
+================================================================
+LUMENX DEPLOYMENT
+================================================================
+ 
+1) GITHUB
+https://github.com/VizuaraAI/lumenx
+ 
+2) DEPLOYED SITE
+https://lumenx-demo.up.railway.app
+   - Customer chat:  https://lumenx-demo.up.railway.app/chat
+   - Admin UI:       https://lumenx-demo.up.railway.app/admin
+   - Product list:   https://lumenx-demo.up.railway.app/products
+ 
+3) ADMIN API ENDPOINTS
+   Base URL:  https://lumenx-demo.up.railway.app
+   Auth:      every /api/admin/* call needs header
+              X-Admin-Token: lmx_GQlch0Q5NOwVuVSADXRuFNJvxIpzVGwI
+ 
+   GET  /api/admin/stats
+        Counts: threads, messages, unread, intent distribution.
+ 
+   GET  /api/admin/inbox?since=ISO
+        Threads with new or unanswered customer messages.
+        Pass `since` from previous response's `server_time` for polling.
+        Returns: { server_time, awaiting_count, entries: [{ thread, last_customer_message, last_admin_message, awaiting_admin, ... }] }
+ 
+   GET  /api/admin/threads
+        All threads with summary fields (last_message, message_count,
+        last_customer_at, last_admin_at).
+ 
+   GET  /api/admin/threads/{id}
+        One thread with every message.
+ 
+   POST /api/admin/threads/{id}/reply
+        Body: { "text": "...", "draft_source"?: "agent"|"human", "confidence"?: 0.87 }
+        Sends an admin reply on that thread.
+ 
+   POST /api/admin/threads/{id}/mark-read
+        Clears the unread_admin counter on that thread.
+ 
+   GET  /api/admin/export
+        Full dump: every thread, every message, products, company policies.
+        Use for agent training context or backup.
+ 
+   GET  /api/admin/products
+        All 20 products with full detail (pricing tiers, features, refund,
+        cancellation, integrations, target audience, support SLA) plus
+        company-wide policies (refund window, free trial, discounts).
+ 
+   GET  /api/admin/products/{id}
+        One product by id (e.g. emailpilot, invoiceflow, taskgrid).
+ 
+ 
+CURL EXAMPLES
+-------------
+TOKEN=lmx_GQlch0Q5NOwVuVSADXRuFNJvxIpzVGwI
+BASE=https://lumenx-demo.up.railway.app
+ 
+# Stats
+curl -H "X-Admin-Token: $TOKEN" $BASE/api/admin/stats
+ 
+# Inbox (new customer messages since last poll)
+curl -H "X-Admin-Token: $TOKEN" "$BASE/api/admin/inbox?since=2026-05-27T00:00:00.000Z"
+ 
+# All threads
+curl -H "X-Admin-Token: $TOKEN" $BASE/api/admin/threads
+ 
+# One thread
+curl -H "X-Admin-Token: $TOKEN" $BASE/api/admin/threads/live-mpnauld9-o8n6ry
+ 
+# Reply
+curl -X POST $BASE/api/admin/threads/live-mpnauld9-o8n6ry/reply \
+     -H "X-Admin-Token: $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"text":"hello"}'
+ 
+# Export everything
+curl -H "X-Admin-Token: $TOKEN" $BASE/api/admin/export
+ 
+# All products (full detail)
+curl -H "X-Admin-Token: $TOKEN" $BASE/api/admin/products
+ 
+# One product by id
+curl -H "X-Admin-Token: $TOKEN" $BASE/api/admin/products/emailpilot
+ 
+ 
+PUBLIC ENDPOINTS (no auth, used by the UI)
+------------------------------------------
+GET  /api/products
+GET  /api/threads                       (optionally ?username=)
+POST /api/threads                       Body: { username, display_name?, product_id?, intent? }
+GET  /api/threads/{id}                  (optionally ?viewer=admin|customer)
+POST /api/threads/{id}/messages         Body: { role, text }
+ 
+ 
+NOTES
+-----
+- Runtime: Next.js 16 on Railway, 1 replica (asia-southeast1).
+- DB:      SQLite via better-sqlite3, persisted on a Railway volume at /data/chat.db.
+- Seed:    runs on every container boot. Wipes seeded=1 threads,
+           reloads 100 demo conversations. Live threads (seeded=0) preserved.
+- Polling: customer/admin UIs poll /api/threads* every 2.5s

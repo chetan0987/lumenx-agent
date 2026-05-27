@@ -1,0 +1,32 @@
+# Secrets — never bake into image
+.env
+.env.local
+
+# Source control
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Node.js (Playwright MCP tooling — not needed in container)
+node_modules/
+
+# Runtime data (injected via volume mounts, not baked in)
+data/
+
+# IDE / OS artefacts
+.claude/
+*.log
+*.tmp
+Thumbs.db
+.DS_Store

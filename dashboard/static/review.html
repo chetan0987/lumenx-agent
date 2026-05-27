@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LumenX Review Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060b18;--bg2:#0d1526;--bg3:#111d33;--bg4:#162040;
+  --border:#1e2e4a;--border2:#243660;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --indigo:#6366f1;--cyan:#06b6d4;--amber:#f59e0b;--red:#ef4444;
+  --green:#10b981;--purple:#8b5cf6;--orange:#f97316;
+  --glass:rgba(255,255,255,0.03);--radius:12px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Header ── */
+header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.logo{font-size:14px;font-weight:700;color:#fff;letter-spacing:-.3px;white-space:nowrap}
+.logo span{color:var(--indigo)}
+.stat-chip{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.stat-chip b{color:var(--text);font-weight:600}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.tab-bar{margin-left:auto;display:flex;gap:3px}
+.tab{padding:5px 12px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);border:none;background:transparent;transition:.15s}
+.tab:hover{background:var(--bg3);color:var(--text)}
+.tab.active{background:var(--indigo);color:#fff}
+
+/* ── Settings bar ── */
+.settings-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;height:44px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.settings-label{font-size:11px;font-weight:500;color:var(--text2);white-space:nowrap}
+.threshold-wrap{display:flex;align-items:center;gap:8px}
+.threshold-slider{-webkit-appearance:none;appearance:none;width:140px;height:4px;border-radius:2px;background:var(--border2);outline:none;cursor:pointer}
+.threshold-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--indigo);cursor:pointer;transition:.15s}
+.threshold-slider::-webkit-slider-thumb:hover{background:#818cf8;transform:scale(1.15)}
+.threshold-val{font-size:12px;font-weight:700;color:var(--indigo);background:rgba(99,102,241,.12);border-radius:5px;padding:2px 7px;min-width:42px;text-align:center}
+.model-status{display:flex;align-items:center;gap:6px;font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 10px}
+.dot{width:7px;height:7px;border-radius:50%}
+.dot-green{background:var(--green)}
+.dot-gray{background:var(--text3)}
+.btn-train{padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;background:rgba(99,102,241,.15);color:var(--indigo);border:1px solid rgba(99,102,241,.3);cursor:pointer;transition:.15s;white-space:nowrap}
+.btn-train:hover:not(:disabled){background:rgba(99,102,241,.25)}
+.btn-train:disabled{opacity:.4;cursor:not-allowed}
+.auto-rate-wrap{margin-left:auto;font-size:11px;color:var(--text3)}
+.auto-rate-wrap b{color:var(--green)}
+
+/* ── Layout ── */
+main{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:300px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sidebar-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.badge{background:var(--indigo);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;min-width:20px;text-align:center}
+.badge.zero{background:var(--bg3);color:var(--text3)}
+.queue-list{flex:1;overflow-y:auto;padding:6px}
+.queue-list::-webkit-scrollbar{width:3px}
+.queue-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── Queue items ── */
+.q-item{border-radius:9px;border:1px solid var(--border);background:var(--glass);padding:10px 12px;margin-bottom:5px;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+.q-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+.q-item.intent-greeting::before{background:var(--green)}
+.q-item.intent-pricing::before{background:var(--amber)}
+.q-item.intent-technical::before{background:var(--indigo)}
+.q-item.intent-other::before{background:var(--text3)}
+.q-item:hover{background:var(--bg3);border-color:var(--border2)}
+.q-item.selected{background:var(--bg3);border-color:var(--indigo)}
+.q-item-header{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.intent-icon{font-size:13px}
+.intent-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:4px}
+.intent-label.greeting{background:rgba(16,185,129,.15);color:var(--green)}
+.intent-label.pricing{background:rgba(245,158,11,.15);color:var(--amber)}
+.intent-label.technical{background:rgba(99,102,241,.15);color:var(--indigo)}
+.intent-label.other{background:rgba(100,116,139,.15);color:var(--text2)}
+.q-thread-id{margin-left:auto;font-size:9px;color:var(--text3);font-family:monospace}
+.q-preview{font-size:11px;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:6px}
+.q-footer{display:flex;align-items:center;gap:6px}
+.q-model{font-size:9px;color:var(--text3)}
+.q-time{font-size:9px;color:var(--text3)}
+.q-cost{font-size:9px;color:var(--green);margin-left:auto}
+.conf-badge{font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px}
+.conf-badge.green{background:rgba(16,185,129,.18);color:var(--green)}
+.conf-badge.yellow{background:rgba(245,158,11,.18);color:var(--amber)}
+.conf-badge.red{background:rgba(239,68,68,.18);color:var(--red)}
+.conf-badge.gray{background:var(--bg3);color:var(--text3)}
+
+.empty-queue{text-align:center;padding:50px 16px;color:var(--text3)}
+.empty-queue .icon{font-size:32px;margin-bottom:10px}
+.empty-queue p{font-size:12px}
+
+/* ── Detail ── */
+.detail{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.detail-inner{flex:1;overflow-y:auto;padding:20px}
+.detail-inner::-webkit-scrollbar{width:3px}
+.detail-inner::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.no-selection{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);gap:10px}
+.no-selection .icon{font-size:44px}
+.no-selection p{font-size:13px}
+.detail-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.detail-thread-id{font-size:12px;color:var(--text3);font-family:monospace}
+.kb-badge{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 9px;font-size:10px;color:var(--text2)}
+.section-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:7px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+.customer-msg{font-size:13px;color:var(--text);line-height:1.6}
+.conf-meter-wrap{margin-bottom:14px}
+.conf-meter-bar{position:relative;height:6px;background:var(--border2);border-radius:3px;margin-bottom:6px}
+.conf-meter-fill{height:100%;border-radius:3px;transition:.4s}
+.conf-meter-fill.green{background:var(--green)}
+.conf-meter-fill.yellow{background:var(--amber)}
+.conf-meter-fill.red{background:var(--red)}
+.conf-threshold-line{position:absolute;top:-4px;bottom:-4px;width:2px;background:rgba(255,255,255,.4);border-radius:1px}
+.conf-meter-labels{display:flex;align-items:center;justify-content:space-between}
+.conf-val{font-size:12px;font-weight:600}
+.conf-val.green{color:var(--green)}
+.conf-val.yellow{color:var(--amber)}
+.conf-val.red{color:var(--red)}
+.conf-thresh-label{font-size:10px;color:var(--text3)}
+.auto-send-note{margin-top:6px;font-size:11px;color:var(--green);background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:6px;padding:5px 10px}
+.no-auto-note{margin-top:6px;font-size:11px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px}
+.untrained-note{font-size:11px;color:var(--text3)}
+.draft-area{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;line-height:1.65;padding:12px;resize:vertical;min-height:110px;outline:none;transition:.15s}
+.draft-area:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.ctx-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--text2);padding:9px 0;border:none;background:transparent;width:100%;border-top:1px solid var(--border)}
+.ctx-toggle:hover{color:var(--text)}
+.ctx-toggle .chev{font-size:9px;transition:.2s;margin-left:auto}
+.ctx-toggle.open .chev{transform:rotate(180deg)}
+.ctx-body{display:none;margin-top:6px}
+.ctx-body.open{display:block}
+.chunk-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:7px}
+.chunk-header{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.chunk-product{font-size:11px;font-weight:600;color:var(--text)}
+.chunk-section{font-size:9px;color:var(--text3);font-family:monospace}
+.chunk-score{font-size:9px;color:var(--cyan);margin-left:auto}
+.chunk-text{font-size:10px;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.token-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.token-pill{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:10px;color:var(--text2);display:flex;gap:5px}
+.token-pill span{color:var(--text);font-weight:500}
+.action-bar{padding:14px 20px;border-top:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.btn{padding:7px 18px;border-radius:7px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:5px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-approve{background:var(--green);color:#fff}
+.btn-approve:hover:not(:disabled){background:#0ea472}
+.btn-edit{background:var(--indigo);color:#fff}
+.btn-edit:hover:not(:disabled){background:#5254cc}
+.btn-skip{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.btn-skip:hover:not(:disabled){background:var(--bg4);color:var(--text)}
+
+/* ── Feedback tab ── */
+.feedback-panel{flex:1;overflow-y:auto;padding:20px}
+.feedback-panel::-webkit-scrollbar{width:3px}
+.feedback-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.fb-table{width:100%;border-collapse:collapse;font-size:11px}
+.fb-table th{text-align:left;padding:7px 10px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);border-bottom:1px solid var(--border)}
+.fb-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+.fb-table tr:hover td{background:var(--bg2)}
+.edit-badge{background:rgba(245,158,11,.12);color:var(--amber);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:600}
+.approve-badge{background:rgba(16,185,129,.12);color:var(--green);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:600}
+.auto-badge{background:rgba(99,102,241,.12);color:var(--indigo);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:600}
+.fb-draft{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb-empty{text-align:center;padding:50px;color:var(--text3);font-size:12px}
+
+/* ── Analytics tab ── */
+.analytics-panel{flex:1;overflow-y:auto;padding:24px}
+.analytics-panel::-webkit-scrollbar{width:3px}
+.analytics-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.stat-card-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px}
+.stat-card-value{font-size:26px;font-weight:700;line-height:1}
+.stat-card-sub{font-size:11px;color:var(--text3);margin-top:5px}
+.value-green{color:var(--green)}
+.value-indigo{color:var(--indigo)}
+.value-amber{color:var(--amber)}
+.value-cyan{color:var(--cyan)}
+
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.chart-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.chart-box.wide{grid-column:1/-1}
+.chart-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:16px}
+.chart-wrap{position:relative;height:180px}
+
+.calls-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:14px}
+.calls-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px}
+.calls-table{width:100%;border-collapse:collapse;font-size:11px}
+.calls-table th{text-align:left;padding:6px 10px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);border-bottom:1px solid var(--border)}
+.calls-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text2)}
+.calls-table tr:hover td{background:var(--bg3)}
+.calls-table td:last-child{color:var(--green)}
+.action-pill{border-radius:4px;padding:1px 6px;font-size:9px;font-weight:600}
+.action-auto{background:rgba(99,102,241,.12);color:var(--indigo)}
+.action-sent{background:rgba(16,185,129,.12);color:var(--green)}
+.action-edited{background:rgba(245,158,11,.12);color:var(--amber)}
+.action-intent{background:rgba(100,116,139,.12);color:var(--text3)}
+
+/* ── Toast ── */
+.toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column-reverse;gap:7px;z-index:999}
+.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:9px 14px;font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px;animation:slideIn .18s ease;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast.success .ti{color:var(--green)}
+.toast.error .ti{color:var(--red)}
+@keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── Modal ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:28px;width:380px;text-align:center}
+.modal h3{font-size:16px;margin-bottom:8px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6}
+.modal-result{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--text2);text-align:left;margin-bottom:16px}
+.modal-result b{color:var(--text)}
+.modal-close{padding:7px 20px;border-radius:7px;font-size:12px;font-weight:600;background:var(--indigo);color:#fff;border:none;cursor:pointer}
+.modal-close:hover{background:#5254cc}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Lumen<span>X</span> Review</div>
+  <div class="stat-chip"><div class="live-dot"></div> <b id="hd-pending">0</b> pending</div>
+  <div class="stat-chip">Processed: <b id="hd-processed">0</b></div>
+  <div class="stat-chip">⚡ Auto: <b id="hd-auto">0</b></div>
+  <div class="stat-chip">Cost: <b id="hd-cost">$0.0000</b></div>
+  <div class="tab-bar">
+    <button class="tab active" onclick="showTab('review')">Review Queue</button>
+    <button class="tab" onclick="showTab('feedback')">Feedback Log</button>
+    <button class="tab" onclick="showTab('analytics')">Analytics</button>
+  </div>
+</header>
+
+<div class="settings-bar">
+  <span class="settings-label">Auto-send threshold:</span>
+  <div class="threshold-wrap">
+    <input type="range" class="threshold-slider" id="threshold-slider" min="0" max="100" value="80" oninput="onThresholdInput(this.value)"/>
+    <span class="threshold-val" id="threshold-val">80%</span>
+  </div>
+  <div class="model-status" id="model-status">
+    <div class="dot dot-gray" id="model-dot"></div>
+    <span id="model-label">Loading…</span>
+  </div>
+  <button class="btn-train" id="btn-train" onclick="trainModel()" disabled>⚙️ Train Model</button>
+  <div class="auto-rate-wrap" id="auto-rate-wrap" style="display:none">Auto-send rate: <b id="auto-rate-val">—</b></div>
+</div>
+
+<main>
+
+<!-- Review tab -->
+<div id="tab-review" style="display:flex;flex:1;overflow:hidden">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Pending</span>
+      <span class="badge zero" id="queue-badge">0</span>
+    </div>
+    <div class="queue-list" id="queue-list">
+      <div class="empty-queue"><div class="icon">📭</div><p>No pending reviews</p></div>
+    </div>
+  </div>
+  <div class="detail" id="detail-panel">
+    <div class="detail-inner" id="detail-inner">
+      <div class="no-selection"><div class="icon">✉️</div><p>Select a thread to review</p></div>
+    </div>
+    <div class="action-bar" id="action-bar" style="display:none">
+      <button class="btn btn-approve" id="btn-approve" onclick="doAction('approve')">✅ Send as-is</button>
+      <button class="btn btn-edit"    id="btn-edit"    onclick="doAction('edit')">✏️ Edit &amp; Send</button>
+      <button class="btn btn-skip"    id="btn-skip"    onclick="doAction('skip')">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback tab -->
+<div id="tab-feedback" style="display:none;flex:1;overflow:hidden">
+  <div class="feedback-panel" id="feedback-panel">
+    <div class="fb-empty">Loading…</div>
+  </div>
+</div>
+
+<!-- Analytics tab -->
+<div id="tab-analytics" style="display:none;flex:1;overflow:hidden">
+  <div class="analytics-panel" id="analytics-panel">
+    <div class="fb-empty">Loading analytics…</div>
+  </div>
+</div>
+
+</main>
+
+<div class="toast-wrap" id="toasts"></div>
+<div id="train-modal" style="display:none"></div>
+
+<script>
+const INTENT_ICON = {greeting:'👋',pricing:'💰',technical:'🔧',other:'💬'};
+const INTENT_CLR  = {greeting:'#10b981',pricing:'#f59e0b',technical:'#6366f1',other:'#64748b'};
+let _queue       = [];
+let _selected    = null;
+let _modelStatus = {trained:false,samples:0,needed:10,ready_to_train:false};
+let _threshold   = 0.80;
+let _thTimer     = null;
+let _charts      = {};
+
+// ── Chart.js global defaults ──────────────────────────────────────────────────
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#1e2e4a';
+Chart.defaults.font.family = 'Inter';
+Chart.defaults.font.size = 11;
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  ['review','feedback','analytics'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===name ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((t,i)=>
+    t.classList.toggle('active',['review','feedback','analytics'][i]===name));
+  if(name==='feedback') loadFeedback();
+  if(name==='analytics') loadAnalytics();
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const [qRes, sRes, csRes] = await Promise.all([
+      fetch('/api/queue').then(r=>r.json()),
+      fetch('/api/stats').then(r=>r.json()),
+      fetch('/api/confidence/status').then(r=>r.json()),
+    ]);
+    _queue = qRes.items||[];
+    _modelStatus = csRes;
+    _threshold = sRes.threshold??_threshold;
+    renderQueue();
+    updateHeader(sRes);
+    updateModelStatus(csRes);
+    syncSlider();
+    if(_selected && !_queue.find(i=>i.id===_selected)){_selected=null;renderDetail(null);}
+  } catch(e){console.warn('poll',e);}
+}
+setInterval(poll, 3000);
+poll();
+
+function updateHeader(s) {
+  document.getElementById('hd-pending').textContent   = s.pending??0;
+  document.getElementById('hd-processed').textContent = s.processed_today??0;
+  document.getElementById('hd-auto').textContent      = s.auto_sent_today??0;
+  document.getElementById('hd-cost').textContent      = '$'+(s.cost_today_usd??0).toFixed(4);
+  const tot = s.processed_today||0, auto = s.auto_sent_today||0;
+  if(tot>0){
+    document.getElementById('auto-rate-wrap').style.display='';
+    document.getElementById('auto-rate-val').textContent=Math.round(auto/tot*100)+'%';
+  }
+}
+
+function updateModelStatus(cs) {
+  const dot=document.getElementById('model-dot'),lbl=document.getElementById('model-label'),btn=document.getElementById('btn-train');
+  if(cs.trained){dot.className='dot dot-green';lbl.textContent=`Trained (${cs.samples} samples)`;btn.disabled=false;btn.textContent='⚙️ Retrain';}
+  else if(cs.ready_to_train){dot.className='dot dot-gray';lbl.textContent=`Ready (${cs.samples}/${cs.needed})`;btn.disabled=false;btn.textContent='⚙️ Train Model';}
+  else{dot.className='dot dot-gray';lbl.textContent=`Need ${cs.needed-cs.samples} more samples`;btn.disabled=true;btn.textContent='⚙️ Train Model';}
+}
+
+function syncSlider(){
+  const pct=Math.round(_threshold*100);
+  document.getElementById('threshold-slider').value=pct;
+  document.getElementById('threshold-val').textContent=pct+'%';
+}
+
+// ── Threshold ─────────────────────────────────────────────────────────────────
+function onThresholdInput(v){
+  document.getElementById('threshold-val').textContent=v+'%';
+  clearTimeout(_thTimer);_thTimer=setTimeout(()=>saveThreshold(parseInt(v)/100),400);
+}
+async function saveThreshold(val){
+  try{await fetch('/api/confidence/threshold',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({threshold:val})});
+  _threshold=val;if(_selected){const it=_queue.find(i=>i.id===_selected);if(it)renderDetail(it);}}catch(e){}
+}
+
+// ── Train ─────────────────────────────────────────────────────────────────────
+async function trainModel(){
+  const btn=document.getElementById('btn-train');btn.disabled=true;btn.textContent='⏳ Training…';
+  try{const res=await fetch('/api/confidence/train',{method:'POST'});const d=await res.json();showTrainModal(d);await poll();}
+  catch(e){toast('Training failed: '+e.message,'error');}
+  finally{btn.disabled=false;}
+}
+function showTrainModal(data){
+  let body='';
+  if(data.status==='trained'){
+    const acc=((data.train_accuracy||0)*100).toFixed(1);
+    body=`<p>Model trained successfully!</p><div class="modal-result"><b>Samples:</b> ${data.samples}<br/><b>Accuracy:</b> ${acc}%<br/><b>Sent as-is:</b> ${data.label_dist?.sent_as_is??'—'}<br/><b>Edited:</b> ${data.label_dist?.edited??'—'}</div>`;
+  }else if(data.status==='insufficient_data'){
+    body=`<p style="color:var(--amber)">Not enough data.</p><div class="modal-result">Need <b>${data.needed}</b> samples, have <b>${data.samples}</b>.</div>`;
+  }else{
+    body=`<p style="color:var(--red)">Error</p><div class="modal-result">${esc(data.message||data.status)}</div>`;
+  }
+  const m=document.getElementById('train-modal');m.style.display='flex';
+  m.innerHTML=`<div class="modal-bg" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()"><h3>Confidence Net</h3>${body}<button class="modal-close" onclick="closeModal()">Close</button></div></div>`;
+}
+function closeModal(){document.getElementById('train-modal').style.display='none';}
+
+// ── Queue ─────────────────────────────────────────────────────────────────────
+function renderQueue(){
+  const list=document.getElementById('queue-list');
+  if(!_queue.length){
+    list.innerHTML=`<div class="empty-queue"><div class="icon">📭</div><p>No pending reviews</p></div>`;
+    const b=document.getElementById('queue-badge');b.textContent=0;b.className='badge zero';return;
+  }
+  const b=document.getElementById('queue-badge');b.textContent=_queue.length;b.className='badge';
+  list.innerHTML=_queue.map(item=>{
+    const icon=INTENT_ICON[item.intent]||'💬',sel=item.id===_selected?' selected':'';
+    const cb=confBadge(item.confidence,_threshold),when=relTime(item.arrived_at);
+    const ms=item.model.replace('claude-','').replace('-20251001','');
+    return `<div class="q-item intent-${item.intent}${sel}" onclick="selectItem('${item.id}')">
+  <div class="q-item-header"><span class="intent-icon">${icon}</span><span class="intent-label ${item.intent}">${item.intent}</span>${cb}<span class="q-thread-id">${item.thread_id.slice(0,11)}</span></div>
+  <div class="q-preview">${esc(item.customer_preview)}</div>
+  <div class="q-footer"><span class="q-model">${esc(ms)}</span><span class="q-time">${when}</span><span class="q-cost">$${item.cost_usd.toFixed(4)}</span></div>
+</div>`;
+  }).join('');
+}
+
+function selectItem(id){_selected=id;renderDetail(_queue.find(i=>i.id===id));renderQueue();}
+
+function renderDetail(item){
+  const inner=document.getElementById('detail-inner'),actBar=document.getElementById('action-bar');
+  if(!item){inner.innerHTML=`<div class="no-selection"><div class="icon">✉️</div><p>Select a thread to review</p></div>`;actBar.style.display='none';return;}
+  actBar.style.display='flex';
+  const icon=INTENT_ICON[item.intent]||'💬';
+  const chunksHtml=item.chunks&&item.chunks.length?item.chunks.map(c=>`
+<div class="chunk-card"><div class="chunk-header"><span class="chunk-product">${esc(c.product_name)}</span><span class="chunk-section">${esc(c.section)}</span><span class="chunk-score">${c.score!=null?(c.score*100).toFixed(0)+'%':''}</span></div><div class="chunk-text">${esc(c.text||'')}</div></div>`).join(''):`<p style="font-size:11px;color:var(--text3)">No KB chunks for this intent.</p>`;
+  const ms=item.model.replace('claude-','').replace('-20251001','');
+  inner.innerHTML=`
+<div class="detail-header">
+  <div style="display:flex;align-items:center;gap:6px"><span style="font-size:17px">${icon}</span><span class="intent-label ${item.intent}">${item.intent}</span></div>
+  <span class="detail-thread-id">${item.thread_id}</span>
+  <span class="kb-badge">KB hits: ${item.kb_hits}</span>
+  <span class="kb-badge" style="font-size:9px;color:var(--text3)">${relTime(item.arrived_at)}</span>
+</div>
+<div class="section-label">Confidence</div>
+${confMeter(item.confidence,_threshold)}
+<div class="section-label">Customer message</div>
+<div class="card"><div class="customer-msg">${esc(item.customer_preview)}</div></div>
+<div class="section-label">Draft reply — edit if needed</div>
+<textarea class="draft-area" id="draft-textarea">${esc(item.draft_text)}</textarea>
+<button class="ctx-toggle" id="ctx-toggle" onclick="toggleCtx()"><span>📚 Context used (${item.kb_hits} KB chunks)</span><span class="chev">▼</span></button>
+<div class="ctx-body" id="ctx-body">${chunksHtml}</div>
+<div class="token-bar">
+  <div class="token-pill">Model <span>${esc(ms)}</span></div>
+  <div class="token-pill">In <span>${item.input_tokens}</span></div>
+  <div class="token-pill">Out <span>${item.output_tokens}</span></div>
+  <div class="token-pill">Cost <span style="color:var(--green)">$${item.cost_usd.toFixed(5)}</span></div>
+</div>`;
+}
+
+function toggleCtx(){
+  const b=document.getElementById('ctx-toggle'),d=document.getElementById('ctx-body');
+  if(b)b.classList.toggle('open');if(d)d.classList.toggle('open');
+}
+
+// ── Confidence helpers ────────────────────────────────────────────────────────
+function confCls(c,t){if(!_modelStatus.trained)return'gray';if(c>=t)return'green';if(c>=0.5)return'yellow';return'red';}
+function confBadge(c,t){
+  if(!_modelStatus.trained)return`<span class="conf-badge gray">—</span>`;
+  return`<span class="conf-badge ${confCls(c,t)}">${Math.round(c*100)}%</span>`;
+}
+function confMeter(c,t){
+  if(!_modelStatus.trained)return`<div class="conf-meter-wrap"><span class="untrained-note">Model not trained — all threads go to human review.</span></div>`;
+  const pct=Math.round(c*100),thPct=Math.round(t*100),cls=confCls(c,t),wo=c>=t;
+  return`<div class="conf-meter-wrap">
+  <div class="conf-meter-bar"><div class="conf-meter-fill ${cls}" style="width:${pct}%"></div><div class="conf-threshold-line" style="left:${thPct}%"></div></div>
+  <div class="conf-meter-labels"><span class="conf-val ${cls}">${pct}% confidence</span><span class="conf-thresh-label">threshold: ${thPct}%</span></div>
+  ${wo?`<div class="auto-send-note">⚡ Above threshold — would auto-send if model had been active</div>`:`<div class="no-auto-note">Below threshold — human review</div>`}
+</div>`;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function doAction(action){
+  if(!_selected)return;
+  const item=_queue.find(i=>i.id===_selected);if(!item)return;
+  const btns=['btn-approve','btn-edit','btn-skip'].map(id=>document.getElementById(id));
+  btns.forEach(b=>{if(b)b.disabled=true;});
+  const body={action};
+  if(action==='edit'){const ta=document.getElementById('draft-textarea');body.edited_text=ta?ta.value.trim():'';if(!body.edited_text){toast('Enter a reply first.','error');btns.forEach(b=>{if(b)b.disabled=false;});return;}}
+  try{
+    const res=await fetch(`/api/action/${item.id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!res.ok){const e=await res.json();toast(e.detail||'Failed','error');btns.forEach(b=>{if(b)b.disabled=false;});return;}
+    toast(`${action==='approve'?'Sent as-is':action==='edit'?'Edited & sent':'Skipped'}: ${item.thread_id.slice(0,14)}…`,'success');
+    _selected=null;renderDetail(null);await poll();
+  }catch(e){toast('Error: '+e.message,'error');btns.forEach(b=>{if(b)b.disabled=false;});}
+}
+
+// ── Feedback log ──────────────────────────────────────────────────────────────
+async function loadFeedback(){
+  const panel=document.getElementById('feedback-panel');
+  try{
+    const data=await fetch('/api/feedback/recent').then(r=>r.json());
+    if(!data.entries.length){panel.innerHTML=`<div class="fb-empty">No feedback entries yet.</div>`;return;}
+    const rows=data.entries.map(e=>{
+      const edited=e.edit_ratio>0.01,auto=e.was_auto_sent;
+      const badge=auto?`<span class="auto-badge">auto</span>`:edited?`<span class="edit-badge">edited</span>`:`<span class="approve-badge">as-is</span>`;
+      const cs=e.confidence_score!=null?Math.round(e.confidence_score*100)+'%':'—';
+      const csCls=e.confidence_score==null?'':e.confidence_score>=0.8?'style="color:var(--green)"':e.confidence_score>=0.5?'style="color:var(--amber)"':'style="color:var(--red)"';
+      const t=new Date(e.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      return`<tr><td>${t}</td><td>${INTENT_ICON[e.intent]||'💬'} ${esc(e.intent)}</td><td class="fb-draft" title="${esc(e.draft_text)}">${esc(e.draft_text)}</td><td>${badge}</td><td>${(e.edit_ratio*100).toFixed(0)}%</td><td ${csCls}>${cs}</td><td style="color:var(--green)">$${(e.cost_usd||0).toFixed(5)}</td><td style="font-size:9px;color:var(--text3)">${esc((e.model||'').replace('claude-','').replace('-20251001',''))}</td></tr>`;
+    }).join('');
+    panel.innerHTML=`<table class="fb-table"><thead><tr><th>Time</th><th>Intent</th><th>Draft</th><th>Action</th><th>Edit%</th><th>Conf</th><th>Cost</th><th>Model</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }catch(e){panel.innerHTML=`<div class="fb-empty">Error: ${esc(e.message)}</div>`;}
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+async function loadAnalytics(){
+  const panel=document.getElementById('analytics-panel');
+  panel.innerHTML=`<div class="fb-empty">Loading analytics…</div>`;
+  try{
+    const data=await fetch('/api/analytics').then(r=>r.json());
+    renderAnalytics(panel,data);
+  }catch(e){panel.innerHTML=`<div class="fb-empty">Error: ${esc(e.message)}</div>`;}
+}
+
+function renderAnalytics(panel, d){
+  const s=d.summary;
+  const confStr=s.avg_confidence!=null?(s.avg_confidence*100).toFixed(0)+'%':'—';
+
+  panel.innerHTML=`
+<!-- Summary cards -->
+<div class="stat-cards">
+  <div class="stat-card"><div class="stat-card-label">Total Cost</div><div class="stat-card-value value-green">$${s.total_cost.toFixed(4)}</div><div class="stat-card-sub">${s.total_calls} API calls</div></div>
+  <div class="stat-card"><div class="stat-card-label">Auto-send Rate</div><div class="stat-card-value value-indigo">${s.auto_rate_pct}%</div><div class="stat-card-sub">${s.feedback_entries} feedback entries</div></div>
+  <div class="stat-card"><div class="stat-card-label">Avg Confidence</div><div class="stat-card-value value-amber">${confStr}</div><div class="stat-card-sub">across all scored replies</div></div>
+  <div class="stat-card"><div class="stat-card-label">Model Trained</div><div class="stat-card-value value-cyan">${_modelStatus.trained?'Yes':'No'}</div><div class="stat-card-sub">${_modelStatus.samples}/${_modelStatus.needed} samples</div></div>
+</div>
+
+<!-- Charts row -->
+<div class="charts-row">
+  <div class="chart-box"><div class="chart-title">Daily Cost — last 14 days ($)</div><div class="chart-wrap"><canvas id="ch-daily"></canvas></div></div>
+  <div class="chart-box"><div class="chart-title">Intent Distribution</div><div class="chart-wrap"><canvas id="ch-intent"></canvas></div></div>
+</div>
+<div class="charts-row">
+  <div class="chart-box wide"><div class="chart-title">Model Usage — calls &amp; cost</div><div class="chart-wrap"><canvas id="ch-models"></canvas></div></div>
+</div>
+
+<!-- Recent calls -->
+<div class="calls-section">
+  <div class="calls-title">Recent API Calls (last 50)</div>
+  <table class="calls-table">
+    <thead><tr><th>Time</th><th>Thread</th><th>Action</th><th>Model</th><th>In</th><th>Out</th><th>Cost</th></tr></thead>
+    <tbody id="calls-tbody"></tbody>
+  </table>
+</div>`;
+
+  // Populate calls table
+  const tbody=document.getElementById('calls-tbody');
+  if(d.recent_calls&&d.recent_calls.length){
+    tbody.innerHTML=d.recent_calls.map(e=>{
+      const t=new Date(e.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const action=e.action||'';
+      const abadge=action==='auto_sent'?`<span class="action-pill action-auto">auto</span>`:action==='sent_as_is'?`<span class="action-pill action-sent">sent</span>`:action==='edited'?`<span class="action-pill action-edited">edited</span>`:action==='intent_classification'?`<span class="action-pill action-intent">intent</span>`:action?`<span class="action-pill">${esc(action)}</span>`:'';
+      const ms=(e.model||'').replace('claude-','').replace('-20251001','');
+      const tid=(e.thread_id||'—').slice(0,12);
+      return`<tr><td>${t}</td><td style="font-family:monospace;font-size:10px">${esc(tid)}</td><td>${abadge}</td><td style="font-size:10px">${esc(ms)}</td><td>${e.input_tokens||0}</td><td>${e.output_tokens||0}</td><td>$${(e.cost_usd||0).toFixed(5)}</td></tr>`;
+    }).join('');
+  }else{tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">No calls logged yet.</td></tr>`;}
+
+  // Destroy old charts
+  ['ch-daily','ch-intent','ch-models'].forEach(id=>{if(_charts[id]){_charts[id].destroy();delete _charts[id];}});
+
+  // Daily cost chart
+  const dailyLabels=d.daily_cost.map(r=>r.date.slice(5));
+  const dailyCosts=d.daily_cost.map(r=>r.cost);
+  _charts['ch-daily']=new Chart(document.getElementById('ch-daily'),{
+    type:'bar',
+    data:{labels:dailyLabels,datasets:[{label:'Cost ($)',data:dailyCosts,backgroundColor:'rgba(99,102,241,.5)',borderColor:'#6366f1',borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1e2e4a'},ticks:{maxRotation:45}},y:{grid:{color:'#1e2e4a'},ticks:{callback:v=>'$'+v.toFixed(4)}}}}
+  });
+
+  // Intent donut
+  const intents=d.intent_dist;
+  const iKeys=Object.keys(intents);
+  const iVals=iKeys.map(k=>intents[k]);
+  const iColors=iKeys.map(k=>INTENT_CLR[k]||'#64748b');
+  _charts['ch-intent']=new Chart(document.getElementById('ch-intent'),{
+    type:'doughnut',
+    data:{labels:iKeys.map(k=>INTENT_ICON[k]+' '+k),datasets:[{data:iVals,backgroundColor:iColors.map(c=>c+'cc'),borderColor:iColors,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{padding:12,font:{size:11}}}}}
+  });
+
+  // Model usage grouped bar
+  const mKeys=Object.keys(d.model_usage);
+  const mLabels=mKeys.map(k=>k.replace('claude-','').replace('-20251001',''));
+  const mCalls=mKeys.map(k=>d.model_usage[k].calls);
+  const mCosts=mKeys.map(k=>d.model_usage[k].cost);
+  _charts['ch-models']=new Chart(document.getElementById('ch-models'),{
+    type:'bar',
+    data:{labels:mLabels,datasets:[
+      {label:'Calls',data:mCalls,backgroundColor:'rgba(6,182,212,.5)',borderColor:'#06b6d4',borderWidth:1,borderRadius:3,yAxisID:'y'},
+      {label:'Cost ($)',data:mCosts,backgroundColor:'rgba(16,185,129,.5)',borderColor:'#10b981',borderWidth:1,borderRadius:3,yAxisID:'y2'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},scales:{
+      x:{grid:{color:'#1e2e4a'}},
+      y:{grid:{color:'#1e2e4a'},position:'left',title:{display:true,text:'Calls',color:'#06b6d4'}},
+      y2:{grid:{display:false},position:'right',title:{display:true,text:'Cost ($)',color:'#10b981'},ticks:{callback:v=>'$'+v.toFixed(4)}},
+    }}
+  });
+}
+
+// ── Toast / Helpers ───────────────────────────────────────────────────────────
+function toast(msg,type='success'){
+  const w=document.getElementById('toasts'),el=document.createElement('div');
+  el.className=`toast ${type}`;el.innerHTML=`<span class="ti">${type==='success'?'✅':'❌'}</span>${esc(msg)}`;
+  w.appendChild(el);setTimeout(()=>el.remove(),3500);
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function relTime(iso){if(!iso)return'';const d=Math.floor((Date.now()-new Date(iso).getTime())/1000);if(d<60)return`${d}s ago`;if(d<3600)return`${Math.floor(d/60)}m ago`;return`${Math.floor(d/3600)}h ago`;}
+</script>
+</body>
+</html>

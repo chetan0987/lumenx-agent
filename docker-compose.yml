@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+
+  # ── Review Dashboard + Agent Poller (Phase 4-6) ────────────────────────────
+  review-dashboard:
+    build: .
+    ports:
+      - "8001:8001"
+    env_file: .env
+    volumes:
+      - ./data:/app/data                      # cost_log + feedback_log (append-only)
+      - ./wiki/wiki_data:/app/wiki/wiki_data  # pre-built TF-IDF wiki
+      - ./models:/app/models                  # trained confidence net MLP
+    environment:
+      PORT: "8001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/stats')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # ── Wiki Knowledge-Graph Explorer (Phase 2 bonus) ─────────────────────────
+  wiki-explorer:
+    build: .
+    command: >
+      python -m uvicorn dashboard.wiki_app:app
+      --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./wiki/wiki_data:/app/wiki/wiki_data
+      - ./data:/app/data
+    restart: unless-stopped
+    depends_on:
+      review-dashboard:
+        condition: service_healthy
