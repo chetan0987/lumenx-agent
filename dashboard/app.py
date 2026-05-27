@@ -54,13 +54,37 @@ app = FastAPI(title="LumenX Review Dashboard", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 
 # ── Shared state ──────────────────────────────────────────────────────────────
+_SEEN_PATH = ROOT / "data" / "seen_threads.txt"
+_THRESHOLD_PATH = ROOT / "data" / "threshold.txt"
+
+def _load_seen() -> set[str]:
+    if _SEEN_PATH.exists():
+        return set(_SEEN_PATH.read_text().splitlines())
+    return set()
+
+def _persist_seen(seen: set[str]) -> None:
+    _SEEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _SEEN_PATH.write_text("\n".join(seen))
+
+def _load_threshold() -> float:
+    if _THRESHOLD_PATH.exists():
+        try:
+            return float(_THRESHOLD_PATH.read_text().strip())
+        except ValueError:
+            pass
+    return float(os.getenv("CONFIDENCE_THRESHOLD", "0.80"))
+
+def _persist_threshold(t: float) -> None:
+    _THRESHOLD_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _THRESHOLD_PATH.write_text(str(t))
+
 _queue: dict[str, dict] = {}
-_seen_threads: set[str] = set()
+_seen_threads: set[str] = _load_seen()
 _server_time: Optional[str] = None
 _processed_today: int = 0
 _auto_sent_today: int = 0
 _cost_today: float = 0.0
-_threshold: float = float(os.getenv("CONFIDENCE_THRESHOLD", "0.80"))
+_threshold: float = _load_threshold()
 
 
 # ── Background polling ────────────────────────────────────────────────────────
@@ -85,6 +109,7 @@ async def _polling_loop():
                 if thread_id in _seen_threads:
                     continue
                 _seen_threads.add(thread_id)
+                _persist_seen(_seen_threads)
                 asyncio.create_task(_process_thread(thread_id))
         except Exception as exc:
             print(f"[poller] error: {exc}")
@@ -408,6 +433,7 @@ async def set_threshold_api(req: ThresholdRequest):
     if not 0.0 <= req.threshold <= 1.0:
         raise HTTPException(status_code=400, detail="threshold must be 0–1")
     _threshold = round(req.threshold, 2)
+    _persist_threshold(_threshold)
     return {"threshold": _threshold}
 
 
