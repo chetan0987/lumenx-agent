@@ -97,23 +97,40 @@ async def startup():
 async def _polling_loop():
     global _server_time
     print("[poller] started")
+    # Seed server_time to NOW so we only process messages arriving after startup
+    if _server_time is None:
+        try:
+            init = await asyncio.to_thread(api.get_inbox, since=None)
+            _server_time = init.get("server_time")
+            print(f"[poller] seeded server_time={_server_time}")
+        except Exception as exc:
+            print(f"[poller] seed error: {exc}")
     while True:
+        await asyncio.sleep(POLL_INTERVAL)
         try:
             inbox = await asyncio.to_thread(api.get_inbox, since=_server_time)
-            _server_time = inbox.get("server_time")
+            new_server_time = inbox.get("server_time")
             for entry in inbox.get("entries", []):
                 thread_meta = entry.get("thread", {})
                 thread_id = thread_meta.get("id")
-                if not thread_id or not entry.get("awaiting_admin"):
+                if not thread_id:
+                    continue
+                # Process threads that have an unanswered customer message
+                # (unread_admin>0 means customer wrote since last admin reply)
+                last_cust = entry.get("last_customer_message")
+                last_admin = entry.get("last_admin_message")
+                if not last_cust:
+                    continue
+                # Skip if admin already replied after the last customer message
+                if last_admin and last_admin.get("ts", "") >= last_cust.get("ts", ""):
                     continue
                 if thread_id in _seen_threads:
                     continue
                 _seen_threads.add(thread_id)
-                _persist_seen(_seen_threads)
                 asyncio.create_task(_process_thread(thread_id))
+            _server_time = new_server_time
         except Exception as exc:
             print(f"[poller] error: {exc}")
-        await asyncio.sleep(POLL_INTERVAL)
 
 
 async def _process_thread(thread_id: str):
