@@ -105,18 +105,20 @@ async def _polling_loop():
             print(f"[poller] seeded server_time={_server_time}")
         except Exception as exc:
             print(f"[poller] seed error: {exc}")
+    poll_count = 0
     while True:
         await asyncio.sleep(POLL_INTERVAL)
+        poll_count += 1
         try:
             inbox = await asyncio.to_thread(api.get_inbox, since=_server_time)
             new_server_time = inbox.get("server_time")
-            for entry in inbox.get("entries", []):
+            entries = inbox.get("entries", [])
+            print(f"[poller] poll#{poll_count} since={_server_time} entries={len(entries)}", flush=True)
+            for entry in entries:
                 thread_meta = entry.get("thread", {})
                 thread_id = thread_meta.get("id")
                 if not thread_id:
                     continue
-                # Process threads that have an unanswered customer message
-                # (unread_admin>0 means customer wrote since last admin reply)
                 last_cust = entry.get("last_customer_message")
                 last_admin = entry.get("last_admin_message")
                 if not last_cust:
@@ -126,11 +128,14 @@ async def _polling_loop():
                     continue
                 if thread_id in _seen_threads:
                     continue
+                print(f"[poller] queuing thread={thread_id}", flush=True)
                 _seen_threads.add(thread_id)
                 asyncio.create_task(_process_thread(thread_id))
             _server_time = new_server_time
         except Exception as exc:
-            print(f"[poller] error: {exc}")
+            import traceback
+            print(f"[poller] error: {exc}", flush=True)
+            traceback.print_exc()
 
 
 async def _process_thread(thread_id: str):
